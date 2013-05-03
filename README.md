@@ -22,3 +22,9 @@ count
 
 Counts the number of times that each line appears repeated in the input.
 
+escapehtml
+----------
+
+Simply passes the input through `encode_entities` in order to escape away
+any characters with special meaning in HTML. This produces an output safe to
+paste within an HTML document, and which will render just as plain text.

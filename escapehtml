@@ -1,8 +1,27 @@
 #!/usr/bin/perl -w
 
 use HTML::Entities;
+use Getopt::Long qw(:config no_ignore_case);
+
+GetOptions(
+  'help'    => sub { usage() },
+);
+
 
 while (<>) {
   $_ = encode_entities($_);
   print;
+}
+
+sub usage {
+  print <<'USAGE';
+Usage: escapehtml [FILE]
+
+Description:
+Simply passes the input through `encode_entities` in order to escape away
+any characters with special meaning in HTML. This produces an output safe to
+paste within an HTML document, and which will render just as plain text.
+USAGE
+
+  exit 1;
 }
