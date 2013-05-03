@@ -1,10 +1,16 @@
 #!/usr/bin/perl -w
 
 use strict;
-use Getopt::Std;
+use Getopt::Long qw(:config no_ignore_case);
 
-my %opt;
-getopts("fl", \%opt);
+my $mode = 'add';
+
+GetOptions(
+  'add'         => sub { $mode = 'add'; },
+  'list'        => sub { $mode = 'list'; },
+  'frequencies' => sub { $mode = 'freq'; },
+  'help'        => sub { usage() },
+);
 
 my %table;
 
@@ -12,9 +18,9 @@ while (<>) {
   chomp;
   (my $k, my $v) = split;
 
-  if ($opt{'l'}) { # list
+  if ($mode eq 'list') { # list
     push @{ $table{$k} }, $v;
-  } elsif ($opt{'f'}) { # frequencies
+  } elsif ($mode eq 'freq') { # frequencies
     $table{$k}->{$v}++;
   } else { # sum
     $table{$k} += $v;
@@ -22,9 +28,9 @@ while (<>) {
 }
 
 while ((my $k, my $v) = each %table) {
-  if ($opt{'l'})  {
+  if ($mode eq 'list')  {
     print "$k ", scalar @$v, " ", join(" ", @$v), "\n";
-  }  elsif ($opt{'f'}) {
+  }  elsif ($mode eq 'freq') {
     my @vs = sort { $v->{$b} <=> $v->{$a} } keys %$v;
     print "$k";
     for my $a (@vs) {
@@ -34,4 +40,30 @@ while ((my $k, my $v) = each %table) {
   } else {
     print "$k $v\n";
   }
+}
+
+sub usage {
+  print <<'USAGE';
+Usage: aggregate [options] [FILE]
+
+Description:
+Assumes that each line in the input is a `key value` pair, and aggregates
+together all the values of each key. The default options assume that each
+`value` is a number, and adds them all together.
+
+The following options, which select the aggregation operation, are available.
+
+--add
+  The default. Assumes that each `value` is a number, and adds together all
+  the values of each key.
+  
+--list
+  Simply collects together all the values of each key, discarding duplicates.
+  
+--frequency
+  Also collects all values, but also reports the number of times that it
+  occurred as value of the key.
+USAGE
+
+  exit 1;
 }

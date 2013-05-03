@@ -6,9 +6,9 @@ Assorted command line scripts for common tasks.
 aggerate
 --------
 
-Reads a file, where each line is interpreted as a `key value` pair, add
-aggregates together the different values of a same key. The default options
-assumes that `value`s are numbers and adds them.
+Assumes that each line in the input is a `key value` pair, and aggregates
+together all the values of each key. The default options assume that each
+`value` is a number, and adds them all together.
 
 coinflip
 --------
