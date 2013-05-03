@@ -1,0 +1,37 @@
+#!/usr/bin/perl -w
+
+use strict;
+use Getopt::Std;
+
+my %opt;
+getopts("fl", \%opt);
+
+my %table;
+
+while (<>) {
+  chomp;
+  (my $k, my $v) = split;
+
+  if ($opt{'l'}) { # list
+    push @{ $table{$k} }, $v;
+  } elsif ($opt{'f'}) { # frequencies
+    $table{$k}->{$v}++;
+  } else { # sum
+    $table{$k} += $v;
+  }
+}
+
+while ((my $k, my $v) = each %table) {
+  if ($opt{'l'})  {
+    print "$k ", scalar @$v, " ", join(" ", @$v), "\n";
+  }  elsif ($opt{'f'}) {
+    my @vs = sort { $v->{$b} <=> $v->{$a} } keys %$v;
+    print "$k";
+    for my $a (@vs) {
+      print " ", $v->{$a}, " ", $a;
+    }
+    print "\n";
+  } else {
+    print "$k $v\n";
+  }
+}

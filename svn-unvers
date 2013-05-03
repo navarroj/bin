@@ -1,0 +1,81 @@
+#!/usr/bin/perl -w
+
+use strict;
+use Getopt::Std;
+
+my %opt;
+
+getopts("arh", \%opt);
+
+if ($opt{h}) {
+  print <<END_USAGE;
+Usage: unvers [option]
+
+Description:
+Recursively list all unversioned files from the currenct directory.
+Optionally perform some operations with those files.
+
+You can specify one of the following options:
+
+-h  Show this usgae information and exit.
+-a  Add all unversioned files and directories to the svn repository.
+-r  Remove all unversioned files and directories (asks for confirmation).
+END_USAGE
+
+  exit 1;
+}
+
+die "Only one of -a or -r should be specified.\n" if $opt{a} && $opt{r};
+
+my @list;
+for my $line (`svn st`) {
+  chomp $line;
+  my ($s, $file) = split ' ', $line, 2;
+  push @list, $file if $s eq '?';
+}
+
+unless (@list) {
+  print "Nothing to remove.\n" if $opt{r};
+  print "Nothing to add.\n"    if $opt{a};
+  exit 0;
+}
+
+my ($nfiles, $ndirs);
+print "About to remove:\n" if $opt{r};
+for my $file (@list) {
+  if ($opt{a}) {
+    system ('svn', 'add', $file);
+  } else {
+    print "- " if $opt{r};
+    print "$file";
+    if (-d $file) {
+      $ndirs++;
+      print " (dir)";
+    } else {
+      $nfiles++;
+    }
+    print "\n";
+  }
+}
+
+if ($opt{r}) {
+  $nfiles = quantity($nfiles, "1 file", "%d files");
+  $ndirs  = quantity($ndirs,  "1 directory", "%d directories");
+  my $to_remove = join(' and ', grep { defined } ($nfiles, $ndirs));
+
+  print "\nReally remove $to_remove? (y/N) ";
+  my $ans = lc(<>);
+  chomp $ans;
+  
+  exit 0 unless $ans eq 'y';
+
+  system ('rm', '-rf', @list);
+}
+
+exit 0;
+
+sub quantity {
+  my ($n, $singular, $plural) = @_;
+  return undef unless defined $n;
+  return $n == 1 ? sprintf $singular, $n : sprintf $plural, $n;
+}

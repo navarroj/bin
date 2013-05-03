@@ -1,0 +1,19 @@
+#!/usr/bin/perl -w
+
+use strict;
+
+my @s = split ",", (shift @ARGV);
+my %s;
+
+my $n = scalar @s;
+for (@s) { $s{$_} = 1 }
+
+my $i = 0;
+while (<>) {
+  if (exists $s{$i}) {
+    print;
+    $n--;
+    exit if (!$n);
+  }
+  $i++;
+}

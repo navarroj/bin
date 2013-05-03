@@ -1,0 +1,6 @@
+#!/usr/bin/perl -w
+$M = shift @ARGV;
+die "Usage:\n  whichpm Some::Module\n" unless defined $M;
+eval("use $M; 1") or die "Can't locate module $M in \@INC\n";
+$M =~ s|::|/|g;
+print $INC{"$M.pm"}, "\n";

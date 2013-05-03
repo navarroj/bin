@@ -1,0 +1,18 @@
+#!/usr/bin/perl -w
+
+use strict;
+use URI;
+use Data::Dumper;
+
+for my $uri (@ARGV) {
+  $uri = URI->new($uri);
+
+  my %data;
+  $data{scheme}    = $uri->scheme         if defined $uri->scheme;
+  $data{authority} = $uri->authority      if defined $uri->authority;
+  $data{path}      = $uri->path;
+  $data{fragment}  = $uri->fragment       if defined $uri->fragment;
+  $data{query}     = { $uri->query_form } if defined $uri->query;
+  
+  print Dumper(\%data), "\n";
+}

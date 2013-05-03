@@ -1,0 +1,25 @@
+#!/usr/bin/perl -w
+
+use strict;
+use Getopt::Std;
+
+my %opt;
+getopts("x", \%opt);
+
+my %list;
+
+while (<>) {
+  $list{$_}++;
+}
+
+
+if ($opt{x}) {
+  while ((my $k, my $v) = each %list) {
+    print "$v\t$k";
+  }
+} else {
+  my @keys = sort { $list{$b} <=> $list{$a} } keys %list;
+  for my $k (@keys) {
+    print "$list{$k}\t$k";
+  }
+}

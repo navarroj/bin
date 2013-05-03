@@ -1,0 +1,64 @@
+#!/usr/bin/perl -w
+
+use strict;
+use Getopt::Long qw(:config no_ignore_case);
+use File::Basename;
+
+my $hidden = undef;
+my $output = undef;
+my $help   = undef;
+
+GetOptions(
+  # num
+  'hidden!'  => \$hidden,
+  'output=s' => \$output,
+  'help|h'   => \$help
+);
+
+my $source = shift @ARGV;
+usage() if $help || not defined $source;
+
+$source =~ s!/$!!; # trim a trailing backslash
+
+die "The specified source is not a directory or does not exist.\nSource: $source\n" unless -d $source;
+
+unless (defined $output) {
+  my ($name, $path) = fileparse($source);
+  $output = "$path$name.tgz";
+}
+
+unless (defined $hidden) {
+  $hidden = $source =~ m/\.(app|key)$/ ? 1 : 0;
+}
+
+my @args = ('-zcvf', $output, $source);
+unshift @args, '--exclude=.*' unless $hidden;
+
+# avoid generating stupid OSX AppleDot (._) files
+$ENV{COPYFILE_DISABLE} = 'true';
+$ENV{COPY_EXTENDED_ATTRIBUTES_DISABLE} = 'true';
+
+system ('tar', @args) and die "Error creating the package\n";
+
+print "\nSuccesfully packed: $output\n";
+
+sub usage {
+  die <<'__USAGE__';
+Usage: pack [options] directory
+
+Description:
+Packs the given directory into a .tgz file using sane default options,
+often deppending on the kind of thing that you want to pack.
+
+Available options are:
+
+--hidden | --no-hidden
+  Include (resp. exclude) hidden dot files from the package. The default
+  is to exclude hidden files; *unless* you are trying to pack a special
+  OSX directory (such as an Application or a Keynote presentation), then
+  the default is to leave any hidden files in the package.
+  
+--output FILE
+  Override the default name that is provided for the generated package.
+__USAGE__
+}

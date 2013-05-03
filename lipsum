@@ -1,0 +1,8 @@
+#!/usr/bin/perl -w
+
+use strict;
+use warnings;
+use Text::Lorem;
+
+my $text = Text::Lorem->new();
+print $text->sentences(shift @ARGV || 5), "\n";

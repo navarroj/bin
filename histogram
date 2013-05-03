@@ -1,0 +1,99 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use Getopt::Long;
+use Regexp::Common;
+
+my $size = 10;
+my $offset = 0;
+my $min_i = undef;
+my $min_x = undef;
+
+GetOptions(
+  "size=i"    => \$size,
+  "offset=i"  => \$offset,
+  "help"      => sub { usage() },
+);
+
+my @hist;
+my $stash = 0;
+my $dirty = 0;
+
+while (<>) {
+  my $x = parse_number($_);
+  next unless defined $x;
+  $min_x = min($x, $min_x);
+  my $i = to_bucket($x);
+  if ($i < 0) { $stash += 1; $i = 0; }
+  $min_i = min($i, $min_i);
+  $hist[$i]++;
+}
+
+warn "histogram: Only the first number per line (if any) has been read\n" .
+     "histogram: Additional numbers or non-numeric data has been ignored\n" if $dirty;
+
+if ($stash) {
+  my $new_offset = to_value(to_bucket($min_x));
+  warn sprintf(
+    "histogram: The first bucket includes $stash value%s bellow $offset\n" .
+    "histogram: You may want to run again adding the option: --offset $new_offset\n",
+    $stash > 1 ? "s" : "");
+}
+
+exit unless defined $min_i;
+
+for my $i ($min_i..@hist - 1) {
+  $hist[$i]+= 0;
+  print "< ", to_value($i + 1), ":\t$hist[$i]\n";
+}
+
+sub min {
+  my ($a, $b) = @_;
+  return $a unless defined $b;
+  return $b unless defined $a;
+  return $a < $b ? $a : $b;
+}
+
+sub parse_number {
+  my $s = shift @_;
+  chomp $s;
+  $s =~ s/($RE{num}{real})//;
+  my $x = $1;
+  $s =~ s/\S//g;
+  $dirty = 1 if $s ne '';
+  return $x;
+}
+
+sub to_bucket {
+  my $x = shift @_;
+  return int(($x - $offset)/$size);
+}
+
+sub to_value {
+  my $i = shift @_;
+  return $i*$size + $offset;
+}
+
+sub usage {
+  print <<'USAGE';
+Usage: histogram [options] [file]
+
+Description:
+Reads numeric data from `file' (or standard input if not supplied) and
+produces a simple histogram of the data.
+
+The following options are available:
+
+--size NUM
+  Size of each bucket in the histogram, defaults to 10.
+
+--offset NUM
+  Soft bound where the first bucket starts, defaults to 0. Values bellow
+  the offset are still included in the count of the first bucket, but an
+  informative warning is displayed.
+  
+USAGE
+
+  exit 1;
+}

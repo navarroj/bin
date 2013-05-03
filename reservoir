@@ -1,0 +1,46 @@
+#!/usr/bin/perl -w
+
+use strict;
+use Getopt::Std;
+
+my %opt;
+getopts("hxs:n:", \%opt);
+
+if ($opt{h}) {
+  print "Usage: reservoir [OPTION]... [FILE]...\n";
+  print "Select a random sample of 10 lines from all given input files.\n";
+  print "With no FILE, or when FILE is -, read standard input.\n\n";
+  print "Options\n";
+  print "  -n N   select a random sample of N lines instead of 10\n";
+  print "  -s N   use N as the seed for the random number generator;\n";
+  print "           if omitted, different runs give different samples\n";
+  print "  -x     don't care about line order;\n";
+  print "           by default, selected lines are printed in the same order as they\n";
+  print "           were read; if you don't care about the order of lines in the\n";
+  print "           output, this option can be used to speed up execution\n";
+  print "  -h     display this help and exit\n";
+  exit;
+}
+
+my $n = exists $opt{n} ? $opt{n} : 10;
+my $i = 0;
+my @reservoir;
+
+exit unless $n > 0;
+
+srand($opt{'s'}) if exists $opt{'s'};
+
+while (<>) {
+  $i++;
+  push @reservoir, [$i, $_];
+  last unless $i < $n;
+}
+
+while (<>) {
+  $i++;
+  $reservoir[int(rand($n))] = [$i, $_] if int(rand($i)) < $n;
+}
+
+@reservoir = sort { $a->[0] <=> $b->[0] } @reservoir unless exists $opt{x};
+
+for my $x (@reservoir) { print $x->[1]; }

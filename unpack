@@ -1,0 +1,86 @@
+#!/usr/bin/perl -w
+
+use strict;
+use Getopt::Long qw(:config no_ignore_case);
+use File::Basename;
+
+my $backup = 1;
+my $help   = undef;
+
+GetOptions(
+  # num
+  'backup!'  => \$backup,
+  'help|h'   => \$help
+);
+
+my $source = shift @ARGV;
+usage() if $help || not defined $source;
+
+my ($package, $directory) = seek_package($source, '.tgz', '.tar.gz');
+
+die "The specified package does not seem to exist:\n$package\n" unless -f $package;
+
+# avoid generating stupid OSX AppleDot (._) files
+$ENV{COPYFILE_DISABLE} = 'true';
+$ENV{COPY_EXTENDED_ATTRIBUTES_DISABLE} = 'true';
+
+if ($backup && defined $directory && -d $directory) {
+  $backup = "$package~";
+  print "Backing up the contents of: $directory/\ninto the package: $backup\n\n";
+
+  system ('tar', '-zcf', $backup, $directory) and die "Error creating backup\n";
+  system ('rm', '-rf', "$directory/");
+}
+
+print "Unpacking...\n";
+system ('tar', '-zxvf', $package) and die "Error upacking file\n";
+
+print "\nSuccesfully unpacked: $package\n";
+
+sub seek_package {
+  my $source = shift;
+  my @suffix = @_;
+
+  $source =~ s!/$!!; # trim a trailing baclskash;  
+  my ($name, $path, $ext) = fileparse( $source, map("\Q$_\E", @suffix) );
+  $source = "$path$name";
+  
+  # it is something that looks like a .tgz package
+  return ("$source$ext", "$source") unless $ext eq '';
+
+  # maybe it is missing the extension?
+  for $ext (@suffix) {
+    return ("$source$ext", "$source") if -f "$source$ext";
+  }
+  
+  # maybe some kind of package i don't know about?
+  if (-f $source) {
+    print "The specified file does not look like a package:\n$source\n\n";
+    print "Do you want to try and unpack it anyway? (y/N) ";
+    my $ans = lc(<>);
+    chomp $ans;
+    exit 1 unless $ans eq 'y' || $ans eq 'yes';
+    print "\n";
+  }
+  
+  return ($source, undef);
+}
+
+sub usage {
+  die <<'__USAGE__';
+Usage: unpack [options] package
+
+Description:
+Unpacks the specified .tgz package with sane default options; and does so
+after creating a backup of existing files if it seems appropriate.
+You may leave out the extension of the package filename, we'll try to find
+the appropriate package for you.
+
+Available options are:
+
+--backup | --no-backup
+  Enables (resp. disables) the creation of a backup for the contents of
+  an existing 'stuff/' directory before attempting to unpack a package
+  named 'stuff.tgz'.
+__USAGE__
+}

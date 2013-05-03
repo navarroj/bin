@@ -1,0 +1,32 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+my $main = $ARGV[0];
+my @file = <*.tex>;
+my $files = join(' ', @file);
+
+unless (defined $main || @file == 0) {
+  $main = (`grep -l '\\\\documentclass' $files`)[0];
+  if (defined $main) {
+    chomp $main;
+    print "Found project root: $main\n";
+  }
+}
+
+die "Can't find project root.\nUsage: mkshop [main.tex]\n" unless defined $main;
+die "Can't find file: $main\n" unless -f $main;
+
+system "rm -f *.texshop";
+for (@file) {
+  next unless -f;
+  if (open TEXSHOP, "> ${_}shop") {
+    print TEXSHOP $main;
+    close TEXSHOP;
+  } else {
+    warn "Unable to write to ${_}shop\n";
+  }
+}
+
+print "TeXShop project created.\n";

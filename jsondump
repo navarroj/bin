@@ -1,0 +1,11 @@
+#!/usr/bin/perl -w
+
+use strict;
+use JSON;
+use YAML::Tiny;
+use open qw(:std :utf8);
+
+$/ = undef;
+
+my $data = decode_json(<>);
+print Dump($data), "\n";

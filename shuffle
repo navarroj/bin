@@ -1,0 +1,19 @@
+#!/usr/bin/perl -w
+
+use strict;
+
+my @array;
+
+while (<>) { push @array, $_; }
+
+# Fisher-Yates shuffle
+# See Recipe 4.17 in Perl's cookbook
+my $i;
+for ($i = @array; --$i; ) {
+  my $j = int rand($i + 1);
+  next if $i == $j;
+  @array[$i, $j] = @array[$j, $i];
+}
+
+for my $l (@array) { print $l; }
+

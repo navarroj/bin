@@ -1,0 +1,44 @@
+#!/usr/bin/perl -w
+
+use strict;
+use Getopt::Std;
+
+my %opt;
+getopts("x", \%opt);
+
+my $max;
+my $min;
+my $med;
+my $s0 = 0;
+my $s1 = 0;
+my $s2 = 0;
+my $miss = 0;
+my @list;
+
+while (<>) {
+  chomp;
+  next if m/^\s*$/;
+
+  push @list, $_ unless $opt{x};
+  $max = $_ if ((!defined $max) || $_ > $max);
+  $min = $_ if ((!defined $min) || $_ < $min);
+  $s0 += 1;
+  $s1 += $_;
+  $s2 += $_ * $_;
+}
+
+unless ($opt{x}) {
+  @list = sort { $a <=> $b } @list;
+  my $m = int($s0 / 2);
+  $med = $s0 % 2 ? $list[$m] : ($list[$m - 1] + $list[$m]) / 2;
+}
+my $avg = $s1 / $s0;
+my $std = sqrt($s0 * $s2 - $s1 * $s1) / $s0;
+
+print "min: $min\n";
+print "max: $max\n";
+print "sum: $s1\n";
+print "avg: $avg\n";
+print "med: $med\n" unless $opt{x};
+print "std: $std\n";
+print "n:   $s0\n";

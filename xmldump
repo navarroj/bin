@@ -1,0 +1,8 @@
+#!/usr/bin/perl -w
+
+use strict;
+use XML::Simple;
+use YAML::Tiny;
+
+unshift @ARGV, '-' unless @ARGV;
+print Dump(XMLin($_, keyattr => [], ForceArray => [])) for @ARGV;

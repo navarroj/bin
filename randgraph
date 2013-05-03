@@ -1,0 +1,309 @@
+#!/usr/bin/perl -w
+
+use strict;
+use Math::Random qw/:all/;
+use Getopt::Long qw(:config no_ignore_case);
+my $seed;
+my $n;
+my $n_file;
+my $p;
+my $n_edges;
+my $N;
+my $self = 0;
+my $print_nodes;
+my $print_edges = 1;
+my $symmetric   = 0;
+my $format = 'plain';
+my $output;
+my $node_id; # array where $node_id[node] => id
+
+GetOptions(
+  # nodes
+  'nodes|n=i'              => \$n,
+  'nodes-file|f=s'         => \$n_file,
+  'choose|N=i'             => \$N,
+  # edges
+  'edge-prob|p=f'          => \$p,
+  'edges|e=i'              => \$n_edges,
+  # graph type
+  'loops|self|l!'          => \$self,
+  'symmetric|undirected|u' => \$symmetric,
+  'directed|d'             => sub { $symmetric = 0 },
+  # seed
+  'seed|s=s'               => \$seed,
+  # print options
+  'print-nodes!'           => \$print_nodes,
+  'print-edges!'           => \$print_edges,
+  'format|fmt|t=s'         => \$format,
+  'output|o=s'             => \$output,
+  # help
+  'help|h'                 => sub { usage() }
+);
+
+synopsis("Please specify either a number of nodes or a file with node names.")
+    unless defined $n || $n_file;
+
+synopsis("Please specify either a number of edges or edge probability.")
+    unless defined $n_edges || defined $p || !$print_edges;
+
+# validate inputs
+die "Number of nodes should be non-negative.\n" if defined $n && $n < 0;
+die "Size of domain for node ids should be non-negative.\n" if defined $N && $N < 0;
+die "Edge probability should be a real in the interval [0, 1].\n" if defined $p && $p < 0;
+die "Edge probability should be a real in the interval [0, 1].\n" if defined $p && $p > 1;
+die "Number of edges should be non-negative.\n" if defined $n_edges && $n_edges < 0;
+
+my @fmts = qw/pl plain dot/;
+die "Unknown format: $format\n" unless valid_format($format);
+
+if (defined $output) {
+  $output =~ s/\\(.)/\\$1]/g;
+  $output =~ s/\\n]/\n/g;
+  $output =~ s/\\t]/\t/g;
+  $output .= "\n";
+  $format = 'none';
+}
+
+$print_nodes = 1 if !defined $print_nodes && $format eq 'dot';
+$print_nodes = 0 unless defined $print_nodes;
+
+random_set_seed_from_phrase($seed) if defined $seed;
+
+# pick ids for nodes
+if ($n_file) {
+  open NODES, "< $n_file" or die "Couldn't open $n_file: $!\n";
+  $node_id = [<NODES>];
+  close NODES;
+  chomp(@$node_id);
+  $n = @$node_id;
+} elsif (defined $N) {
+  if ($n < $N) {
+    $node_id = choose_node_ids($n, $N);
+  } else {
+    die "Can't choose $n nodes out of $N.\n" unless $n == $N;
+  }
+}
+
+# how many edges can fit in a full graph
+my $N_edges = $n * ($self ? ($symmetric ? $n + 1 : $n) : $n - 1);
+$N_edges /= 2 if $symmetric;
+
+# how many edges to select
+if (defined $n_edges) {
+  die "Can't pick $n_edges out of $N_edges edges.\n" if $n_edges > $N_edges;
+} else {
+  $n_edges = random_binomial(1, $N_edges, $p);
+}
+
+print $symmetric ? "graph G {\n" : "digraph {\n" if $format eq 'dot';
+
+# print nodes if we were asked to
+if ($print_nodes) {
+  for my $x (0..$n-1) {
+    if ($format eq 'pl') {
+      print "node(" . node_id($x) . ").\n";
+    } elsif ($format eq 'dot') {
+      print "\tnode [label=\"" . node_id($x) . "\"] node$x;\n";
+    } else {
+      print node_id($x), "\n";
+    }
+  }
+}
+
+unless ($print_edges) {
+  print "}\n" if $format eq 'dot';
+  exit;
+}
+
+# pick edges in the graph
+my %graph;
+my $i = 0;
+if ($self && !$symmetric) {
+  # special case of directed graph with self-links
+  while ($i < $n_edges) {
+    my $x = int_rand($N_edges);
+    my $y = 0;
+    while ($x > $y) {
+      $y++;
+      $x-= $y;
+    }
+    next if exists $graph{$x}{$y};
+    $graph{$x}{$y} = 1;
+    $i++;
+  }
+} else {
+  # all other cases
+  while ($i < $n_edges) {
+    my $x = int_rand($n);
+    my $y = int_rand($n);
+    ($x, $y) = ($y, $x) if $symmetric && $y < $x;
+    next if exists $graph{$x}{$y};
+    next if $x == $y && !$self;
+    $graph{$x}{$y} = 1;
+    $i++;
+  }
+}
+
+# print the graph
+my $edg = $symmetric ? "--" : "->";
+
+while (my ($x, $ys) = each %graph) {
+  for my $y (keys %$ys) {
+    if (defined $output) {
+      my $s = $output;
+      $s =~ s/\$a/node_id($x)/ge;
+      $s =~ s/\$b/node_id($y)/ge;
+      $s =~ s/\\(.)]/$1/g;
+      print $s;
+    } elsif ($format eq 'pl') {
+      print "link(" . node_id($x) . "," . node_id($y) . ").\n";
+    } elsif ($format eq 'dot') {
+      print "\tnode$x $edg node$y;\n";
+    } else {
+      print node_id($x) . "\t" . node_id($y) . "\n";
+    }
+  }
+}
+
+print "}\n" if $format eq 'dot';
+
+exit;
+
+## subs ##
+
+sub valid_format {
+  my $f = shift;
+  for (@fmts) {
+    return 1 if $f eq $_;
+  }
+  return 0;
+}
+
+sub node_id {
+  my $i = shift;
+  return defined $node_id ? $node_id->[$i] : $i;
+}
+
+sub choose_node_ids {
+  my ($n, $N) = @_;
+  my $node_id = [];
+  my %seen;
+  my $i = 0;
+  while ($i < $n) {
+    my $a = int_rand(1, $N);
+    next if exists $seen{$a};
+    push @$node_id, $a;
+    $seen{$a} = 1;
+    $i++;
+  }
+  return $node_id;
+}
+
+sub int_rand {
+  # rand(n)     returns a random integer in the range [0, n)
+  # rand(n, m)  returns a random integer in the range [n, m]
+  my ($a, $b) = @_;
+  ($a, $b) = (0, $a - 1) unless defined $b;
+  return random_uniform_integer(1, $a, $b);
+}
+
+sub synopsis {
+  my $note = shift;
+  
+  print "$note\n\n" if defined $note;
+  print <<'SYNOPSIS';
+Synopsis: 
+  randgraph [options] --nodes NUM --edges NUM
+  randgraph [options] --nodes NUM -p REAL
+  randgraph [options] --nodes-file FILE --edges NUM
+  randgraph --help
+SYNOPSIS
+
+  exit 1;
+}
+
+sub usage {
+  print <<'USAGE';
+Usage: randgraph [options]
+
+Description:
+Generates a random graph satisfying all the constraints given as options. The
+graph is selected uniformly at random from all the possible graphs satisfying
+those constraints.
+
+The following options are available:
+
+--nodes NUM | -n NUM
+  Number of nodes in the generated graph.
+
+--choose NUM | -N NUM
+  Assign to every node a random id from the set [1..N].
+
+--node-file FILE | -f FILE
+  Load a file containing the names of the nodes. Names should be given one by
+  one on each line. If this option is ussed, both --nodes and --choose are
+  ignored. The number of names in the file is the number of nodes. It is the
+  user's responsibility to ensure that the file does not include duplicate
+  entries.
+  
+--edges NUM | -e NUM
+  Number of edges in the generated graph. If given, the generated graph will
+  be selected uniformly at random among all the graphs that have exactly the
+  specified number of edges. This option takes precedence over the option -p
+  below.
+  
+--edge-prob REAL | -p REAL
+  Edge probability. Should be a real number in the interval [0, 1] and, if
+  given, represents the probability that each individual edge has to appear
+  in the generated graph. As edges are selected independently, the actual
+  number of edges in the generated graph is not fixed.
+  
+--loops | --self | -l
+--no-loops | --no-self (default)
+  Allow (or disallow) the use of loops, i.e. an edge from a node to itself,
+  in the generated graph. The default is not to allow loops.
+  
+--directed | -d (default)
+--symmetric | --undirected | -u
+  Choose whether the generated graph should be directed or not (i.e. a
+  symmetric graph). The default is to produce a directed graph.
+
+--seed SEED | -s SEED
+  Provide a seed value to initialize the random number generator and produce
+  reproducible runs. The value of the seed can be an arbitrary phrase,
+  string or number. If a seed is not specified, each run of the command will
+  produce a different output.
+  
+  Although this option allows to easily generate reproducible runs, results
+  might change between different verions of the script, or even the same
+  version of the script running in different systems.
+  
+--print-nodes
+--no-print-nodes (default)
+  Enable (or disable) printing the list of nodes in the output. The default
+  is not to include nodes in the output.
+  
+--print-edges (default)
+--no-print-edges
+  Enable (or disable) printing the list of edges in the output. The default
+  is, of course, to include edges in the output. If edges are not printed,
+  the graph isn't computed either, but nodes may still be computed (or
+  transformed) and printed.
+  
+--format FORMAT | --fmt FORMAT | -t FORMAT
+  Select the format used for producing the output graph. Valid formats are:
+    plain (default)   simple text, edges as a tab separated pair of nodes.
+    pl                nodes and edges as prolog terms.
+    dot               standard dot file (by default turns on node printing).
+    
+--output STR | -o STR
+  As an alternative to specifying a format, this option allows to give a
+  string pattern to print edges. In the pattern, '$a' and '$b' will be
+  replaced with the pair of nodes in an edge. Backslash escapes (e.g. '\n',
+  '\t', '\$') can also be used. For example, the 'pl' format corresponds
+  to the string 'link($a,$b).' and 'plain' to '$a\t$b'.
+USAGE
+
+  exit 1;
+}
+

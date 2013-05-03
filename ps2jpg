@@ -1,0 +1,20 @@
+#!/usr/bin/perl -w
+
+use strict;
+use File::Find;
+
+find(\&wanted, '.');
+
+sub wanted {
+  my $file = my $root = $_;
+  return if -d $file;
+  return unless $root =~ s/\.e?ps$//;
+  print $File::Find::name, " ...\n";
+  system('ps2pdf', $file, "$root.pdf");
+  system('sips', '-s', 'format', 'jpeg', "$root.pdf", '--out', "$root.jpg");
+  system('rm', $file, "$root.pdf");
+}
+
+sub echo {
+  print join(" ", @_), "\n";
+}

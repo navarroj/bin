@@ -1,0 +1,29 @@
+#!/usr/bin/perl -w
+
+use strict;
+use Getopt::Std;
+
+my %opt;
+getopts("ik:", \%opt);
+
+$opt{k} = 1 unless defined $opt{k};
+$opt{k}--;
+
+die "Usage: setminus [options] FILEA FILEB\n" unless @ARGV == 2;
+(my $filea, my $fileb) = @ARGV;
+
+my %set;
+
+open FILEB, "< $fileb";
+while (<FILEB>) {
+  chomp;
+  $set{$_} = 1;
+}
+close FILEB;
+
+open FILEA, "< $filea";
+while (<FILEA>) {
+  my $key = (split " ")[$opt{k}];
+  print if (exists $set{$key}) == (exists $opt{i});
+}
+close FILEA;

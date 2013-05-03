@@ -87,7 +87,7 @@ Usage: coins [options]
 Description:
 Generates a random sequence of values drawn, following some probability
 distribution, from a given set of elements. The default options produce
-random coin flips from a fair coin.
+a random coin flip from a fair coin.
 
 The following options define the number of random values generated.
 Different options can be combined in a single call.

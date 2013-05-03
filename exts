@@ -1,0 +1,21 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use YAML;
+
+my $path = $ARGV[0] || ".";
+
+opendir my $DIR, $path or die "Cannot open directory: $!";
+my @file = readdir $DIR;
+closedir $DIR;
+
+my %ext;
+for my $file (@file) {
+  next unless $file =~ m/\./;
+  next if $file =~ m/^\./;
+  $file =~ s/^.+\.//;
+  $ext{$file} = 1;
+}
+
+print "$_\n" for sort { $a cmp $b } keys %ext;

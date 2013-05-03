@@ -1,0 +1,17 @@
+#!/usr/bin/perl -w
+
+use strict;
+use DBI;
+use YAML::Tiny;
+
+die "Usage:\n  sqldump DB_FILE QUERY\n" unless @ARGV == 2;
+
+my ($file, $query) = @ARGV;
+
+my $db = DBI->connect("dbi:SQLite:$file", '', '');
+for my $row(@{ $db->selectall_arrayref($query, { Slice => {} }) }) {
+  next unless defined $row;
+  utf8::decode($row->{$_}) for keys %$row;
+  print Dump($row);
+}
+$db->disconnect;

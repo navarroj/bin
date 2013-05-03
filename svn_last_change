@@ -1,0 +1,31 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use YAML::Tiny;
+
+my @svn = `svn info * 2>/dev/null`;
+my $item = undef;
+
+while (my $line = shift @svn) {
+  chomp $line;
+  if ($line eq '') {
+    process($item) if defined $item;
+    $item = undef;
+  } else {
+    my ($k, $v) = split ': ', $line;
+    $item->{make_key($k)} = $v;
+  }
+}
+process($item) if defined $item;
+
+sub process {
+  my $item = shift;
+  print "$item->{path} $item->{last_changed_rev}\n"
+}
+
+sub make_key {
+  my $str = lc(shift);
+  $str =~ tr/ /_/;
+  return $str;
+}

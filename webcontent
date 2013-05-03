@@ -1,0 +1,36 @@
+#!/usr/bin/perl -w
+
+use strict;
+use lib '/Users/navarro/Projects/code/lib';
+use Web::Fetch;
+use File::Slurp;
+
+my $file = shift @ARGV;
+die "Usage: webcontent [cachefile.web]" unless defined $file;
+
+my %mime_action = (
+  'text/html'            => 'decoded:html',
+  'text/javascript'      => 'decoded:js',
+  'application/atom+xml' => 'raw:xml',
+  'image/jpeg'           => 'raw:jpeg'
+);
+
+my $res = load_response($file);
+die $res->status_line . "\n" unless $res->is_success;
+my $type = $res->content_type;
+print "Mime type: $type\n";
+die "Don't know what to do with this type\n" unless exists $mime_action{$type};
+
+my ($act, $ext) = split ':', $mime_action{$type};
+$file =~ s{\.web$}{};
+$file .= ".$ext";
+
+if ($act eq 'decoded') {
+  write_file($file, $res->decoded_content);
+  print "Extracted: $file\n";
+} elsif ($act eq 'raw') {
+  write_file($file, { binmode => ':raw' }, $res->content);
+  print "Extracted: $file\n";
+} else {
+  die "Unknown action: $act";
+}
