@@ -16,3 +16,9 @@ coinflip
 Generates a random sequence of values drawn, following some probability
 distribution, from a given set of elements. The default options produce
 a random coin flip from a fair coin.
+
+count
+-----
+
+Counts the number of times that each line appears repeated in the input.
+
