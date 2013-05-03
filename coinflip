@@ -1,0 +1,178 @@
+#!/usr/bin/perl
+
+use strict;
+use Math::Random qw/:all/;
+use Getopt::Long qw(:config no_ignore_case);
+use YAML::Tiny;
+
+my $num = undef;
+my @hand = ();
+my $file = undef;
+my @name = ();
+my @weight = ();
+my $int_a = 0;
+my $int_b = undef;
+my $seed;
+my $bin_p = undef;
+
+GetOptions(
+  # num
+  'num=i'          => \$num,
+  'foreach=s{1,}'  => \@hand,
+  'foreach-line=s' => \$file,
+  # values
+  'values=s{1,}'   => \@name,
+  'a=i'            => \$int_a,
+  'b=i'            => \$int_b,
+  'binary'         => sub { ($int_a, $int_b) = (0, 2) },
+  'p=f'            => \$bin_p,
+  # seed
+  'seed=s'         => \$seed,
+  # help
+  'help'           => sub { usage() },
+);
+
+$num = 1 unless defined $num || defined $file || @hand;
+@name = qw(tails head) unless @name || $int_b;
+
+if (@name) {
+  warn "coinflip: When providing values, the option --b is ignored\n" 
+    if defined $int_b;
+  $int_a = 0;
+  $int_b = 0;
+  for my $i (0..@name-1) {
+    ($name[$i], $weight[$i]) = split ':', $name[$i];
+    $weight[$i] = 1 unless defined $weight[$i];
+    $int_b += $weight[$i];
+  }
+}
+
+random_set_seed_from_phrase($seed) if defined $seed;
+
+while ($num) {
+  printf "%s\n", sample();
+  $num--;
+}
+
+for my $hand (@hand) {
+  printf "%s\t%s\n", $hand, sample();
+}
+
+if (defined $file) {
+  open FILE, "< $file";
+  while (<FILE>) {
+    chomp;
+    printf "%s\t%s\n", $_, sample(), "\n";
+  }
+  close FILE;
+}
+
+exit 0;
+
+sub sample {
+  my $x = defined $bin_p
+        ? random_binomial(1, $int_b - 1 - $int_a, $bin_p) + $int_a
+        : random_uniform_integer(1, $int_a, $int_b - 1);
+  return $x unless @name;
+
+  my $i = 0;
+  while ($x >= $weight[$i]) { $x -= $weight[$i]; $i++; }
+  return $name[$i];
+}
+
+sub usage {
+  print <<'USAGE';
+Usage: coins [options]
+
+Description:
+Generates a random sequence of values drawn, following some probability
+distribution, from a given set of elements. The default options produce
+random coin flips from a fair coin.
+
+The following options define the number of random values generated.
+Different options can be combined in a single call.
+
+--num NUM
+
+  Generates NUM random values. If none of the other options in this section
+  are used, a default value of 1 is assumed.
+  
+--foreach NAME1 [NAME2 ...]
+  
+  Generates on random value for each given NAME. In the output each value is
+  labeled with one of the names in the given order. For example:
+  
+    conflips --foreach carl richard stephen 
+  
+  will generate three coin flips, one for each of the given names.
+  
+--foreach-line FILE
+
+  Similar to --foreach above, but a FILE is read instead, and each line
+  is assumed to be a different name. If `-' is given as a file name then
+  the standard input is read instead.
+
+The following options define the set of elements from which values are drawn,
+as well as the probability distribution used to select them:
+
+--values VAL1[:W1] [VAL2[:W2] ...]
+
+  Explicitly defines a set of strings from which values are drawn.
+  The default behaviour, for example, is equivalent to running:
+  
+    coinflip --values tails head
+  
+  To pick a colours at random, you could write:
+  
+    coinflip --values red green blue
+  
+  Optional weights can be given to make some of the elements more likely
+  to be drawn from the set. Each element has a default weight of 1. To select
+  a biased coin where `tails' is twice more likely than `head' you could run:
+  
+    coinflip --values tails:2 head
+
+-a INT
+-b INT
+
+  Alternatively, one can define an interval [a, b) of integer numbers from
+  which values are drawn. The value of `a', by default 0, is included in
+  the interval, but not the value of `b' which is only an upper bound.
+  
+--binary
+
+  It is equivalent to the option: -b 2
+  
+-p PROB
+
+  As an alternative to, or in addition to, specifying weights to distort the
+  probability with which items are drawn, specifying this option makes values
+  to be drawn from a binomial rather than a uniform distribution.
+  
+  Specifically, the value returned is the number of successes of n - 1 yes/no
+  experiments, where each experiment has probability of success p and n
+  is the number of (weighed) values in the set.
+  
+  When the number of values is 2, e.g. using the default coin flip setting
+  or the --binary option, the value `p` effectively selects the probability
+  of success (resp. `head' or `1') of a single biased coin flip. For example:
+  
+    coinflip -p 0.7
+    
+  will produce `head', on average, 70% of the time.
+
+The following are other miscellaneous options:
+
+--seed SEED
+  Provides a seed value to initialize the random number generator in order to
+  generate reproducible runs. The value of the seed can be an arbitrary phrase,
+  string or number. If a seed is not specified, each run of the command will
+  produce a different output.
+  
+  Warning: although this option allows to easily generate reproducible runs,
+  results might change between different verions of the script, or even the
+  same version of the script running in different systems.
+USAGE
+
+  exit 1;
+}
