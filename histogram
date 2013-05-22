@@ -11,8 +11,8 @@ my $min_i = undef;
 my $min_x = undef;
 
 GetOptions(
-  "size=i"    => \$size,
-  "offset=i"  => \$offset,
+  "size=f"    => \$size,
+  "offset=f"  => \$offset,
   "help"      => sub { usage() },
 );
 
