@@ -34,3 +34,9 @@ exts
 
 Prints a list of all file extensions found in a specified directory. By
 default it lists extensions on the current directory.
+
+gremlins
+--------
+
+From the given input files, or standard input if no file name is given, it
+outputs every line containing non-standard ASCII characters.
