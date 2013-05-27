@@ -8,7 +8,7 @@ def cell_text(cell):
     return " ".join(cell.stripped_strings)
 
 if len(sys.argv) > 1:
-    input = open(sys.argv[1], 'r')
+    input = open(sys.argv[1], "r")
 else:
     input = sys.stdin
 
