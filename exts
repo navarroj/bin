@@ -3,6 +3,11 @@
 use strict;
 use warnings;
 use YAML;
+use Getopt::Long qw(:config no_ignore_case);
+
+GetOptions(
+  'help'    => sub { usage() },
+);
 
 my $path = $ARGV[0] || ".";
 
@@ -19,3 +24,15 @@ for my $file (@file) {
 }
 
 print "$_\n" for sort { $a cmp $b } keys %ext;
+
+sub usage {
+  print <<'USAGE';
+Usage: exts [DIRECTORY]
+
+Description:
+Prints a list of all file extensions found in the specified DIRECTORY. By
+default it lists extensions on the current directory.
+USAGE
+
+  exit 1;
+}

@@ -28,3 +28,9 @@ escapehtml
 Simply passes the input through `encode_entities` in order to escape away
 any characters with special meaning in HTML. This produces an output safe to
 paste within an HTML document, and which will render just as plain text.
+
+exts
+----
+
+Prints a list of all file extensions found in a specified directory. By
+default it lists extensions on the current directory.
