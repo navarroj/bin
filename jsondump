@@ -2,10 +2,22 @@
 
 use strict;
 use JSON;
-use YAML::Tiny;
+use Scalar::Util qw(blessed reftype);
+use YAML::Tiny qw(Dump);
 use open qw(:std :utf8);
 
 $/ = undef;
 
 my $data = decode_json(<>);
+stringify_objects($data);
 print Dump($data), "\n";
+
+# Stringify all objects in $hash:
+sub stringify_objects {
+  for my $val (@_) {
+    next unless my $ref = reftype $val;
+    if (blessed $val) { $val = "$val" }
+    elsif ($ref eq 'ARRAY') { stringify_objects(@$val) }
+    elsif ($ref eq 'HASH')  { stringify_objects(values %$val) }
+  }
+}
