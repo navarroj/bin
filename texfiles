@@ -1,0 +1,15 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+@ARGV = glob("*.log") unless @ARGV;
+die "No TeX log files found.\n" unless @ARGV;
+
+my %file;
+
+while (my $line = <>) {
+  $file{$_} = 1 for $line =~ m|\./([\w-]+\.tex)|g;
+}
+
+print "$_\n" for sort { $a cmp $b } keys %file;
