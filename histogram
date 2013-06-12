@@ -3,38 +3,85 @@
 use strict;
 use warnings;
 use Getopt::Long;
-use Regexp::Common;
+use Math::BigFloat;
+
+my $num = 10;
+
+while (<>) {
+  my $line = $_;
+  my ($min, $max) = map { Math::BigFloat->new($_) } split(' ', $line, 2);
+  print join("\t", $min, $max, nice_interval($min, $max, $num)), "\n";
+}
+exit 1;
+
+sub nice_interval {
+  my ($min, $max, $num) = @_;
+  my $step = $max->copy()->bsub($min)->bdiv($num);
+  my $exp = $step->copy()->blog(10)->bfloor();
+  my $man = $step->copy()->bdiv(10 ** $exp)->bceil();
+  if ($man > 5) { $man = 1; $exp->badd(1); } elsif ($man > 2) { $man = 5; }
+  $step = Math::BigFloat->new("${man}E${exp}");
+  my $a = $min->copy()->bdiv($step)->bfloor();
+  my $bmax = $a->copy()->badd($num)->bmul($step);
+  my $bmin = $a->copy()->bmul($step);
+  my $e = $bmax->copy()->bsub($max)->bdiv($step)->bfloor();
+#  $step->bmul(10 ** $exp);
+  return ($step, $a, $bmin, $bmax, $e);
+}
+
+#  1 <= b <= 9
+#  step = b*10^e
+#  d1 = min - a*step
+#  d2 = (a + n)*step - max
+#  0 <= d1
+#  0 <= d2
+#  minimize: d1 + d2
+
+#=========================
 
 my $size = 10;
 my $offset = 0;
 my $min_i = undef;
-my $min_x = undef;
+my $u_min = undef;
+my $u_max = undef;
 
 GetOptions(
   "size=f"    => \$size,
   "offset=f"  => \$offset,
+  "num=i"     => \$num,
+  "min=f"     => \$u_min,
+  "max=f"     => \$u_max,
   "help"      => sub { usage() },
 );
 
+
 my @hist;
 my $stash = 0;
-my $dirty = 0;
+my @sample;
+my $x_min = undef;
+my $x_max = undef;
 
 while (<>) {
-  my $x = parse_number($_);
-  next unless defined $x;
-  $min_x = min($x, $min_x);
-  my $i = to_bucket($x);
-  if ($i < 0) { $stash += 1; $i = 0; }
-  $min_i = min($i, $min_i);
-  $hist[$i]++;
+  next if m/^\s*$/;
+  my $x = Math::BigFloat->new($_);
+  push @sample, $x;
+  $x_min = min($x, $x_min);
+  $x_max = max($x, $x_max);
+  print join("\t", $x, log_round_up($x)), "\n";
 }
 
-warn "histogram: Only the first number per line (if any) has been read\n" .
-     "histogram: Additional numbers or non-numeric data has been ignored\n" if $dirty;
+print "min: $x_min\n";
+print "max: $x_max\n";
+exit 0;
+
+#  my $i = to_bucket($x);
+#  if ($i < 0) { $stash += 1; $i = 0; }
+#  $min_i = min($i, $min_i);
+#  $hist[$i]++;
+#}
 
 if ($stash) {
-  my $new_offset = to_value(to_bucket($min_x));
+  my $new_offset = to_value(to_bucket($u_min));
   warn sprintf(
     "histogram: The first bucket includes $stash value%s bellow $offset\n" .
     "histogram: You may want to run again adding the option: --offset $new_offset\n",
@@ -55,14 +102,11 @@ sub min {
   return $a < $b ? $a : $b;
 }
 
-sub parse_number {
-  my $s = shift @_;
-  chomp $s;
-  $s =~ s/($RE{num}{real})//;
-  my $x = $1;
-  $s =~ s/\S//g;
-  $dirty = 1 if $s ne '';
-  return $x;
+sub max {
+  my ($a, $b) = @_;
+  return $a unless defined $b;
+  return $b unless defined $a;
+  return $a > $b ? $a : $b;
 }
 
 sub to_bucket {
@@ -97,3 +141,5 @@ USAGE
 
   exit 1;
 }
+
+# 
