@@ -32,8 +32,9 @@ paste within an HTML document, and which will render just as plain text.
 exts
 ----
 
-Prints a list of all file extensions found in a specified directory. By
-default it lists extensions on the current directory.
+Given a list of files, by default from standard input, output a list of all
+their file extensions. The extension of a file considered to be anything from
+the first dot to the end of the file name.
 
 gremlins
 --------
