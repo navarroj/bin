@@ -3,35 +3,61 @@
 use strict;
 use warnings;
 use YAML;
-use Getopt::Long qw(:config no_ignore_case);
+use Getopt::Long;
+
+my $path = undef;
+my $hidden = 0;
 
 GetOptions(
-  'help'    => sub { usage() },
+  'path=s' => \$path,
+  'ls'     => sub { $path = '.' },
+  'hidden' => \$hidden,
+  'h|help' => sub { usage() },
 );
 
-my $path = $ARGV[0] || ".";
-
-opendir my $DIR, $path or die "Cannot open directory: $!";
-my @file = readdir $DIR;
-closedir $DIR;
-
-my %ext;
-for my $file (@file) {
-  next unless $file =~ m/\./;
-  next if $file =~ m/^\./;
-  $file =~ s/^.+\.//;
-  $ext{$file} = 1;
+my $files = { };
+if (defined $path) {
+  opendir $files->{handle}, $path or die "Cannot open directory: $path\n$!\n";  
+  $files->{fetch} = sub { return scalar readdir $files->{handle} };
+  $files->{close} = sub { closedir $files->{handle} };
+} else {
+  $files->{fetch} = sub { return scalar <> };
+  $files->{close} = sub { };
 }
 
-print "$_\n" for sort { $a cmp $b } keys %ext;
+my %ext;
+while (defined (my $file = $files->{fetch}->())) {
+  chomp $file;
+  next unless $file =~ m/\./;
+  next unless $file =~ m/[^.]/;
+  next if $file =~ m/^\./ && !$hidden;
+  $file =~ s/^.+?\././;
+  $ext{$file} = 1;
+}
+$files->{close}->();
+
+print "$_\n" for sort keys %ext;
 
 sub usage {
   print <<'USAGE';
-Usage: exts [DIRECTORY]
+Usage: exts [OPTIONS]
 
 Description:
-Prints a list of all file extensions found in the specified DIRECTORY. By
-default it lists extensions on the current directory.
+Given a list of files, by default from standard input, output a list of all
+their file extensions. The extension of a file considered to be anything from
+the first dot to the end of the file name.
+
+The following options are available:
+-ls
+  Instead of reading from standard input, get the list of files from the
+  current directory.
+  
+-path [DIR]
+  Instead of reading from standard input, get the list of files from the
+  specified directory.
+
+-hidden
+  Show hidden files, the extension is considered to be the whole file name.
 USAGE
 
   exit 1;
