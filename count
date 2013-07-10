@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 
 use strict;
-use Getopt::Long qw(:config no_ignore_case);
+use Getopt::Long;
 
 
 my $sort = 1;
@@ -33,10 +33,10 @@ sub usage {
 Usage: count [--no-sort] [FILE]
 
 Description:
-Counts the number of times that each line appears repeated in the input.
+Count the number of times that each line appears repeated in the input.
 By default the output is sorted showing the most common values first.
 
---no-sort
+-no-sort
   If speed is a concern, this option will not sort the output. As a hash is
   used to hold the values of the lines, the output will appear on a seemingly
   random order.

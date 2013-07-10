@@ -43,16 +43,17 @@ sub usage {
 Usage: exts [OPTIONS]
 
 Description:
-Given a list of files, by default from standard input, output a list of all
-their file extensions. The extension of a file considered to be anything from
-the first dot to the end of the file name.
+Given a list of files as input, output a list of all their file extensions.
+The extension of a file is considered to be anything from the first dot to the
+end of the file name. The list of files can be read from standard input (the
+default) or from a directory in the system.
 
 The following options are available:
 -ls
   Instead of reading from standard input, get the list of files from the
   current directory.
   
--path [DIR]
+-path DIR
   Instead of reading from standard input, get the list of files from the
   specified directory.
 

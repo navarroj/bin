@@ -2,7 +2,7 @@
 
 use strict;
 use Math::Random qw/:all/;
-use Getopt::Long qw(:config no_ignore_case);
+use Getopt::Long;
 use YAML::Tiny;
 
 my $num = undef;
@@ -85,52 +85,51 @@ sub usage {
 Usage: coins [options]
 
 Description:
-Generates a random sequence of values drawn, following some probability
-distribution, from a given set of elements. The default options produce
-a random coin flip from a fair coin.
+Produce a random sample of values from a given probability distribution. The
+default options produce a random coin flip from a single fair coin.
 
-The following options define the number of random values generated.
+The following options define the number of elements in the sample.
 Different options can be combined in a single call.
 
---num NUM
+-num NUM
 
-  Generates NUM random values. If none of the other options in this section
+  Generates NUM random values. If *none* of the other options in this section
   are used, a default value of 1 is assumed.
   
---foreach NAME1 [NAME2 ...]
+-foreach NAME1 [NAME2 ...]
   
-  Generates on random value for each given NAME. In the output each value is
+  Generates one random value for each given NAME. In the output each value is
   labeled with one of the names in the given order. For example:
   
-    conflips --foreach carl richard stephen 
+    conflips -foreach carl richard stephen 
   
-  will generate three coin flips, one for each of the given names.
+  will generate three coin flips, one for each of the three names.
   
---foreach-line FILE
+-foreach-line FILE
 
-  Similar to --foreach above, but a FILE is read instead, and each line
+  Similar to -foreach above, but a FILE is read instead, and each line
   is assumed to be a different name. If `-' is given as a file name then
   the standard input is read instead.
 
 The following options define the set of elements from which values are drawn,
 as well as the probability distribution used to select them:
 
---values VAL1[:W1] [VAL2[:W2] ...]
+-values VAL1[:W1] [VAL2[:W2] ...]
 
   Explicitly defines a set of strings from which values are drawn.
   The default behaviour, for example, is equivalent to running:
   
-    coinflip --values tails head
+    coinflip -values tails head
   
-  To pick a colours at random, you could write:
+  To pick a one of three colours at random, you could write:
   
-    coinflip --values red green blue
+    coinflip -values red green blue
   
   Optional weights can be given to make some of the elements more likely
   to be drawn from the set. Each element has a default weight of 1. To select
-  a biased coin where `tails' is twice more likely than `head' you could run:
+  a biased coin where `tails' is twice more likely than `head' you would run:
   
-    coinflip --values tails:2 head
+    coinflip -values tails:2 head
 
 -a INT
 -b INT
@@ -139,7 +138,7 @@ as well as the probability distribution used to select them:
   which values are drawn. The value of `a', by default 0, is included in
   the interval, but not the value of `b' which is only an upper bound.
   
---binary
+-binary
 
   It is equivalent to the option: -b 2
   
@@ -154,7 +153,7 @@ as well as the probability distribution used to select them:
   is the number of (weighed) values in the set.
   
   When the number of values is 2, e.g. using the default coin flip setting
-  or the --binary option, the value `p` effectively selects the probability
+  or the -binary option, the value `p` effectively selects the probability
   of success (resp. `head' or `1') of a single biased coin flip. For example:
   
     coinflip -p 0.7
@@ -163,15 +162,11 @@ as well as the probability distribution used to select them:
 
 The following are other miscellaneous options:
 
---seed SEED
+-seed SEED
   Provides a seed value to initialize the random number generator in order to
   generate reproducible runs. The value of the seed can be an arbitrary phrase,
   string or number. If a seed is not specified, each run of the command will
   produce a different output.
-  
-  Warning: although this option allows to easily generate reproducible runs,
-  results might change between different verions of the script, or even the
-  same version of the script running in different systems.
 USAGE
 
   exit 1;

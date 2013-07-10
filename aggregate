@@ -1,7 +1,7 @@
 #!/usr/bin/perl -w
 
 use strict;
-use Getopt::Long qw(:config no_ignore_case);
+use Getopt::Long;
 
 my $mode = 'add';
 
@@ -47,20 +47,20 @@ sub usage {
 Usage: aggregate [options] [FILE]
 
 Description:
-Assumes that each line in the input is a `key value` pair, and aggregates
+Assume that each line in the input is a `key value` pair, and aggregate
 together all the values of each key. The default options assume that each
 `value` is a number, and adds them all together.
 
 The following options, which select the aggregation operation, are available.
 
---add
+-add
   The default. Assumes that each `value` is a number, and adds together all
   the values of each key.
   
---list
+-list
   Simply collects together all the values of each key, discarding duplicates.
   
---frequency
+-frequency
   Also collects all values, but also reports the number of times that it
   occurred as value of the key.
 USAGE
