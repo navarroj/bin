@@ -1,0 +1,58 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use open qw/:std :utf8/;
+
+use Getopt::Long;
+use LWP::Simple;
+use XML::Simple;
+use YAML::Tiny;
+use URI;
+
+my $list = undef;
+
+GetOptions(
+  'list=s' => \$list,
+  'help'   => sub { usage() },
+);
+
+unless (defined $list) {
+  $list = new URI(shift @ARGV);
+  $list = { $list->query_form }->{list};
+}
+
+usage() unless defined $list;
+
+my $next = new URI("https://gdata.youtube.com/feeds/api/playlists/$list?v=2");
+
+while (1) {
+  my $data = get($next);
+  die "Couldn't fetch playlist\n" unless defined $data;
+  my $list = XMLin($data, keyattr => [], ForceArray => []);
+
+  for my $entry (@{ $list->{entry} }) {
+    my $url = new URI($entry->{link}->[0]->{href});
+    my %arg = $url->query_form;
+    my $title = $entry->{title};
+    $title =~ s/\s+/ /g;
+    print "$arg{v} $title\n";
+  }
+  
+  $next = $list->{link}->[-1];
+  last unless $next->{rel} eq 'next';
+  $next = $next->{href};
+}
+
+sub usage {
+  print <<'_END_';
+Usage:
+  yt-playlist URL
+  yt-playlist -list ID
+
+Description:
+Download youtube video id's and titles for a given playlist.
+_END_
+
+  exit 1;
+}
