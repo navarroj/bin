@@ -1,5 +1,5 @@
-bin
-===
+binx
+====
 
 Assorted command line scripts for common tasks.
 
