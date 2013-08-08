@@ -1,0 +1,12 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+
+my $pid = fork();
+if (defined $pid && $pid == 0) {
+  sleep 1;
+  exec qw(open http://0.0.0.0:8000);
+  exit 0;
+}
+exec qw(python -m SimpleHTTPServer 8000);
