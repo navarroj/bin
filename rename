@@ -1,0 +1,100 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use open qw/:std :utf8/;
+use File::Copy qw(move);
+use Getopt::Long;
+
+GetOptions(
+  'help'        => sub { usage() },
+);
+
+my $subst = shift @ARGV;
+$subst = eval "sub { $subst }";
+
+# Printed form of the unprintable characters in the lowest range
+# of ASCII characters, listed by ASCII ordinal position.
+my @UNPRINTABLE = qw(
+	z    x01  x02  x03  x04  x05  x06  a
+	x08  t    n    v    f    r    x0e  x0f
+	x10  x11  x12  x13  x14  x15  x16  x17
+	x18  x19  x1a  e    x1c  x1d  x1e  x1f
+);
+
+my @file;
+while (@ARGV) {
+  my $old_file = shift @ARGV;
+  $_ = $old_file;
+  $subst->();
+  my $new_file = $_;
+  next if $old_file eq $new_file;
+  push @file, [$old_file, $new_file];
+}
+
+unless (@file) {
+  print "No files were found to rename.\n";
+  exit 0;
+}
+
+printf "You are about to rename the following %s:\n",
+       @file > 1 ? scalar @file . " files" : "file";
+for my $file (@file) {
+  printf "  %s -> %s\n", map { qquote($_) } @$file;
+}
+
+print "\nConfirm (yes/NO): ";
+while (1) {
+  chomp(my $ans = lc(<>));
+  last if $ans eq 'yes';
+  if ($ans eq '' || $ans =~ '^n') {
+    print "No files were renamed.\n";
+    exit 0;
+  }
+  print "Please answer 'yes' or 'no': ";
+}
+my $num = 0;
+for my $file (@file) {
+  $num += move(@$file);
+}
+my $fail = scalar @file - $num;
+print $num == 0 ? "No files were succesfully renamed."
+    : $num == 1 ? "1 file was succesfully renamed."
+    :             "$num files were succesfully renamed.";
+printf " (%d failed)" if $fail > 0;
+print "\n";
+
+# stolen from YAML::Tiny
+sub qquote {
+  my $string = shift;
+  return '~'  unless defined $string;
+  return "''" unless length  $string;
+  if ($string =~ /[\x00-\x08\x0b-\x0d\x0e-\x1f\"\'\n]/) {
+    $string =~ s/\\/\\\\/g;
+    $string =~ s/"/\\"/g;
+    $string =~ s/\n/\\n/g;
+    $string =~ s/([\x00-\x1f])/\\$UNPRINTABLE[ord($1)]/g;
+    return qq|"$string"|;
+  }
+  return $string =~ /(?:^\W|\s|:\z)/ ? "'$string'" : $string;
+}
+
+sub usage {
+  print <<'USAGE';
+Usage: rename PATTERN [FILE ..]
+
+Description:
+Allows to rename multiple files at once. A given PATTERN is applied to the
+names of all FILEs listed, in order to compute their new names. For example, to
+change the extension of all `.txt` files to `.dat` one could write:
+
+    rename 's/\.txt$/.dat/' *.txt
+
+As writing correct regular expressions is often tricky, the utility requests
+explicit confirmation of file name changes before actually renaming any files.
+
+PATTERN is an arbitrary perl expression applied to the implicit variable `$_`.
+USAGE
+
+  exit 1;
+}
