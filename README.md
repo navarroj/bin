@@ -42,3 +42,15 @@ gremlins
 
 From the given input files, or standard input if no file name is given,
 output every line containing non-standard ASCII characters.
+
+rename
+------
+
+Allows to rename multiple files at once. A given PATTERN is applied to the
+names of all FILEs listed, in order to compute their new names. For example, to
+change the extension of all `.txt` files to `.dat` one could write:
+
+    rename 's/\.txt$/.dat/' *.txt
+
+As writing correct regular expressions is often tricky, the utility requests
+explicit confirmation of file name changes before actually renaming any files.
