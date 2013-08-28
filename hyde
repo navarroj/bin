@@ -1,0 +1,123 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use YAML::Tiny qw(Load LoadFile Dump);
+use Error qw/:try/;
+use DateTime;
+use Unicode::Normalize;
+use Text::Unidecode;
+use open qw(:std :utf8);
+
+my $mode = shift @ARGV;
+
+if (!defined $mode || $mode eq 'help') {
+  usage();
+}
+
+die "Jekyll configuration file not found.\n" unless -f '_config.yml';
+my $config = LoadFile('_config.yml');
+
+if ($mode eq 'serve') {
+  system qw(jekyll serve --watch --baseurl=), @ARGV;
+} elsif ($mode eq 'build') {
+  system qw(jekyll build);
+} elsif ($mode eq 'upload') {
+  die "Upload destination not set in configuration.\n"
+    unless defined $config->{upload}->{dest};
+  system qw(jekyll build);
+  system qw(rsync -v -rz --checksum _site/), $config->{upload}->{dest};
+} elsif ($mode eq 'publish') {
+  @ARGV = <_drafts/*.md> unless @ARGV;
+  while (@ARGV) {
+    my $draft = shift @ARGV;
+    die "Draft not found: $draft\n" unless -f $draft;
+    my $post = read_post($draft);
+    $post->{date} = file_date($draft) unless defined $post->{date};
+    my $filename = post_filename($post);
+    die "Post already exists: $filename\n" if -f $filename;
+    print "$filename\n";
+    write_post($filename, $post);
+    unlink $draft;
+  }
+} else {
+  die "Unknown command: $mode\n";
+}
+
+exit 0;
+
+sub post_filename {
+  my $post = shift;
+  (my $date) = split ' ', $post->{date};
+  my $title = slugify($post->{title});
+  return sprintf("_posts/%s-%s.md", $date, $title);
+}
+
+sub slugify {
+  my $str = shift;
+
+  $str = NFKD($str);        # Normalize the Unicode string
+  $str = unidecode($str);   # Un-accent characters
+  $str =~ tr/\000-\177//cd; # Strip non-ASCII characters (>127)
+  $str =~ s/[^\w\s-]//g;    # Remove all non-word characters
+  $str = lc($str);          # Lowercase
+  $str =~ s/[-\s]+/-/g;     # Replace spaces and hyphens with a single hyphen
+  $str =~ s/^-|-$//g;       # Trim hyphens from both ends
+
+  return $str;
+}
+
+sub write_post {
+  my ($file, $post) = @_;
+  my $body = delete $post->{body};
+  
+  open FILE, ">:utf8", $file or die "Can't write to file: $file\n";
+  print FILE Dump($post);
+  print FILE "---\n";
+  print FILE $body;
+  close FILE;
+}
+
+sub read_post {
+  my $file = shift;
+  my $doc = undef;
+
+  open FILE, "<:utf8" , $file or die "Can't open file: $file\n";
+  try {
+    my @head;
+	while (<FILE>) {
+	  last if @head && m/^---/;
+	  push @head, $_;
+	}
+	$doc = Load(join('', @head));
+	die "Invalid document header.\n" unless ref $doc eq 'HASH';
+    die "Page title missing.\n" unless defined $doc->{title};
+  
+	$doc->{body} = '';
+	while (<FILE>) { $doc->{body} .= $_; }
+  } finally {
+    close FILE;
+  };
+  return $doc;
+}
+
+sub file_date {
+  my $file = shift;
+  return DateTime->from_epoch(
+    epoch => (stat $file)[9],
+    time_zone => 'local'
+  )->strftime('%Y-%m-%d %H:%M:%S %z');
+}
+
+sub usage {
+  print <<'USAGE';
+Usage: hyde [command] [options]
+
+Description:
+Perform several tasks on a Jekyll site.
+
+hyde serve
+USAGE
+
+  exit 1;
+}
