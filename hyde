@@ -116,7 +116,21 @@ Usage: hyde [command] [options]
 Description:
 Perform several tasks on a Jekyll site.
 
-hyde serve
+hyde serve [--drafts]
+  Start a Jekyll server, optionally with drafts.
+  
+hyde build
+  Build the site. Just like `jekyll build`.
+  
+hyde upload
+  Build and upload the site to its host using rsync.
+  To setup add first in _config.yml, for example:
+
+    upload:
+      dest: user@host.com:~/path/to/website/
+
+hyde publish [draft]
+  Publish a selected draft, or all drafts if none is given.
 USAGE
 
   exit 1;
