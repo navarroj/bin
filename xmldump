@@ -3,6 +3,7 @@
 use strict;
 use XML::Simple;
 use YAML::Tiny;
+use open qw(:std :utf8);
 
 unshift @ARGV, '-' unless @ARGV;
 print Dump(XMLin($_, keyattr => [], ForceArray => [])) for @ARGV;
