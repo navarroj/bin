@@ -7,6 +7,14 @@ use HTTP::Response;
 my $file = shift @ARGV;
 die "Usage: webcontent WEB_FILE" unless defined $file;
 
+my $resp = read_file($file, binmode => ':raw');
+$resp = HTTP::Response->parse($resp);
+die $resp->status_line . "\n" unless $resp->is_success;
+print $resp->decoded_content;
+
+exit 0;
+
+__END__
 my %mime_action = (
   'text/html'            => 'decoded:html',
   'text/javascript'      => 'decoded:js',
@@ -15,9 +23,6 @@ my %mime_action = (
   'image/jpeg'           => 'raw:jpeg'
 );
 
-my $resp = read_file($file, binmode => ':raw');
-$resp = HTTP::Response->parse($resp);
-die $resp->status_line . "\n" unless $resp->is_success;
 my $type = $resp->content_type;
 print "Mime type: $type\n";
 die "Don't know what to do with this type\n" unless exists $mime_action{$type};
