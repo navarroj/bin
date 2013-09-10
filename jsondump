@@ -6,11 +6,20 @@ use Scalar::Util qw(blessed reftype);
 use YAML::Tiny qw(Dump);
 use open qw(:std :utf8);
 
-$/ = undef;
 
-my $data = decode_json(<>);
-stringify_objects($data);
-print Dump($data), "\n";
+unshift @ARGV, '-' unless @ARGV;
+
+for my $file (@ARGV) {
+  local $/;
+  open my $fh, "<", $file or die "Can't open: $file\n";
+  my $text = <$fh>;
+  close $fh;
+  # decode_json expects binary utf8 bytes, not perl utf8 chars
+  utf8::encode($text);
+  my $data = decode_json($text);
+  stringify_objects($data);
+  print Dump($data), "\n";
+}
 
 # Stringify all objects in $hash:
 sub stringify_objects {
