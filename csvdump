@@ -1,0 +1,46 @@
+#!/usr/bin/perl
+
+use strict;
+use warnings;
+use YAML::Tiny qw(Dump);
+use Text::CSV;
+
+for my $file (@ARGV) {
+  my $csv = Text::CSV->new({ binary => 1, eol => $/ });
+  open my $fh, "<:encoding(utf8)", $file or die "$file: $!";
+  my $head = $csv->getline($fh);
+  my $keys = [ map { make_key($_) } @$head ];
+  while (my $row = $csv->getline($fh)) {
+    print Dump(hash_zip($keys, $row));
+  }
+  close $fh;
+}
+
+exit 0;
+
+sub hash_zip {
+  my @keys = @{ shift @_ };
+  my @cols = @{ shift @_ };
+  my $item = { };
+  while (@keys) {
+    $item->{shift @keys} = shift @cols;
+  }
+  return $item;
+}
+
+sub hash_unzip {
+  my @keys = @{ shift @_ };
+  my $item = shift;
+  return [ map { $item->{$_} } @keys ];
+}
+
+sub make_key {
+  my $str = lc(shift);
+  $str =~ s/\s+/ /g;
+  $str =~ s/^ //;
+  $str =~ s/ $//;
+  $str =~ tr/ /_/;
+  $str =~ s/[^a-zA-Z0-9_]//g;
+  return $str;
+}
+
