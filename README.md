@@ -54,3 +54,4 @@ change the extension of all `.txt` files to `.dat` one could write:
 
 As writing correct regular expressions is often tricky, the utility requests
 explicit confirmation of file name changes before actually renaming any files.
+
