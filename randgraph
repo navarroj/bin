@@ -3,6 +3,7 @@
 use strict;
 use Math::Random qw/:all/;
 use Getopt::Long qw(:config no_ignore_case);
+use Math::Trig;
 my $seed;
 my $n;
 my $n_file;
@@ -12,10 +13,12 @@ my $N;
 my $self = 0;
 my $print_nodes;
 my $print_edges = 1;
-my $symmetric   = 0;
+my $print_matrix;
+my $symmetric = 0;
 my $format = 'plain';
 my $output;
 my $node_id; # array where $node_id[node] => id
+my $avg_cost;
 
 GetOptions(
   # nodes
@@ -25,6 +28,8 @@ GetOptions(
   # edges
   'edge-prob|p=f'          => \$p,
   'edges|e=i'              => \$n_edges,
+  # costs
+  'cost|c:i'               => \$avg_cost,
   # graph type
   'loops|self|l!'          => \$self,
   'symmetric|undirected|u' => \$symmetric,
@@ -32,6 +37,7 @@ GetOptions(
   # seed
   'seed|s=s'               => \$seed,
   # print options
+  'print-matrix!'          => \$print_matrix,
   'print-nodes!'           => \$print_nodes,
   'print-edges!'           => \$print_edges,
   'format|fmt|t=s'         => \$format,
@@ -146,9 +152,15 @@ if ($self && !$symmetric) {
 
 # print the graph
 my $edg = $symmetric ? "--" : "->";
+my @matrix;
+for my $i (0..$n-1) {
+  push @matrix, [('\\none') x $n];
+}
 
 while (my ($x, $ys) = each %graph) {
   for my $y (keys %$ys) {
+    $matrix[$x][$y] = get_cost($avg_cost);
+    $matrix[$y][$x] = $matrix[$x][$y] if $symmetric;
     if (defined $output) {
       my $s = $output;
       $s =~ s/\$a/node_id($x)/ge;
@@ -167,9 +179,40 @@ while (my ($x, $ys) = each %graph) {
 
 print "}\n" if $format eq 'dot';
 
+if ($print_matrix) {
+  my @name = map { chr(ord('a') + $_) } (0..$n - 1);
+
+  my $step = 2*pi/$n;
+  print '\begin{tikzpicture}', "\n";
+  for my $i (0..$n - 1) {
+    my ($x, $y) = map { sprintf('%.4f', $_) } (3*cos($i*$step), 3*sin($i*$step));
+    print "\\node (n$i) at ($x,$y) {$name[$i]};\n";
+  }
+  print "\\path[auto]\n";
+  for my $x (sort { $a <=> $b } keys %graph) {
+    for my $y (sort { $a <=> $b } keys %{ $graph{$x} }) {
+      print "  (n$x) edge node {$matrix[$x][$y]} (n$y)\n";
+    }
+  }
+  print ";\n";
+  print '\end{tikzpicture}', "\n";
+  
+  print '\begin{tabular}{c|', ('c' x $n), '}', "\n";
+  print join(' & ', ' ', @name), " \\\\\\hline\n";
+  for my $i (0..$n - 1) {
+    print join(' & ', $name[$i], @{ $matrix[$i] }), ($i < $n - 1 ? " \\\\" : ""), "\n";
+  }
+  print '\end{tabular}', "\n";
+}
 exit;
 
 ## subs ##
+
+sub get_cost {
+  my $avg_cost = shift;
+  return 1 unless $avg_cost;
+  return 1 + random_poisson(1, $avg_cost - 1);
+}
 
 sub valid_format {
   my $f = shift;
