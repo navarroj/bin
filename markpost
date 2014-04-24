@@ -1,36 +1,34 @@
-#!/bin/sh
+#!/usr/bin/perl
 
-while getopts :b opt
-do case "$opt" in
-  b) br="BR";;
-  esac
-done
-shift $(($OPTIND - 1))
+use strict;
+use warnings;
+use open qw/:std :utf8/;
+use utf8;
 
-if [ "$br" == "BR" ]; then
-  markdown $1 | smartypants | perl -nwe '{ s{<p>}{<br />\n}; s{</p>}{<br />}; print unless $_ =~ m{^\s*$} }'
-else
+my $template = "string://" . do {local $/; <DATA>};
+my $file = shift @ARGV;
 
-  cat <<HEAD
-<?xml version="1.0" encoding="UTF-8"?>
-<!DOCTYPE html PUBLIC "-//W3C//DTD XHTML 1.0 Strict//EN" "http://www.w3.org/TR/xhtml1/DTD/xhtml1-strict.dtd">
-<html xmlns="http://www.w3.org/1999/xhtml" xml:lang="en" lang="en">
+die "Usage: markpost FILE.md\n" unless
+  defined $file && $file =~ m/\.md$/;
+  
+(my $outfile = $file) =~ s/\.md$/.html/;
+
+open STDOUT, '>', $outfile or die "Can't open for writing: $outfile\n";
+system('kramdown', '--template', $template, $file);
+
+__DATA__
+<!DOCTYPE HTML>
+<html>
 <head>
 <title>Post draft</title>
 <meta http-equiv="Content-Type" content="text/html;charset=UTF-8"/>
 <style type="text/css">
+article { border: black 1px solid; padding: 0 20px; width: 520px; margin: 20px auto; }
 img { display: block; margin-left: auto; margin-right: auto }
 </style>
 </head>
 <body>
-<div style="border: black 1px solid; padding: 0 20px; width: 520px; margin: 20px auto;">
-HEAD
-
-  markdown $1 | smartypants
-
-  cat <<FOOT
-</div>
+<article>
+<%= @body %>
+</article>
 </body>
-FOOT
-
-fi
