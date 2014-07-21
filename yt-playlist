@@ -10,24 +10,33 @@ use XML::Simple;
 use YAML::Tiny;
 use URI;
 
-my $list = undef;
+my $api = undef;
 
 GetOptions(
-  'list=s' => \$list,
+  'list=s' => sub { my ($k, $v) = @_; $api = api_playlist($v) },
+  'user=s' => sub { my ($k, $v) = @_; $api = api_user($v) },
   'help'   => sub { usage() },
 );
 
-unless (defined $list) {
-  $list = new URI(shift @ARGV);
-  $list = { $list->query_form }->{list};
+unless (defined $api) {
+  $api = new URI(shift @ARGV);
+  my $query = { $api->query_form };
+  if (exists $query->{list}) {
+    $api = api_playlist($query->{list});
+  } elsif ($api->path =~ m!/user/(\w+)/!) {
+    $api = api_user($1);
+  } else {
+    print $api->path;
+    die "Don't know how to get a list from:\n  $api\n";
+  }
 }
 
-usage() unless defined $list;
+usage() unless defined $api;
 
 my $ua = LWP::UserAgent->new;
 $ua->agent('Mozilla/5.0 (X11; Linux i686; rv:6.0) Gecko/20100101 Firefox/6.0');
 
-my $next = new URI("https://gdata.youtube.com/feeds/api/playlists/$list?v=2");
+my $next = new URI($api);
 
 while (1) {
   my $data = $ua->get($next);
@@ -38,7 +47,10 @@ while (1) {
     my $url = new URI($entry->{link}->[0]->{href});
     my %arg = $url->query_form;
     my $title = $entry->{title};
+    $title = $title->{content} if ref $title eq 'HASH';
     $title =~ s/\s+/ /g;
+    $title =~ s/^ //;
+    $title =~ s/ $//;
     print "$arg{v} $title\n";
   }
   
@@ -51,11 +63,22 @@ sub usage {
   print <<'_END_';
 Usage:
   yt-playlist URL
-  yt-playlist -list ID
+  yt-playlist --list ID
+  yt-playlist --user USER
 
 Description:
 Download youtube video id's and titles for a given playlist.
 _END_
 
   exit 1;
+}
+
+sub api_playlist {
+  my $list = shift;
+  return "https://gdata.youtube.com/feeds/api/playlists/$list?v=2";
+}
+
+sub api_user {
+  my $user = shift;
+  return "https://gdata.youtube.com/feeds/api/users/$user/uploads";
 }
