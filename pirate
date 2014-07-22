@@ -1,0 +1,67 @@
+#!/usr/bin/env python
+import os.path
+import subprocess
+import re
+
+class Scrapper:
+    def __init__(self, config):
+        lines = config.strip().split('\n')
+        self._patterns = []
+        for line in lines:
+            self._patterns.append(line.strip().split('|'))
+    
+    def scrappe(self, output):
+        notes = []
+        ok_flag = False
+        for pattern, value in self._patterns:
+            if re.search(pattern, output):
+                if value == '__ok__':
+                    ok_flag = True
+                else:
+                    notes.append(value)
+        if len(notes) == 0 and not ok_flag:
+            print "== output =="
+            print output
+            raise StandardError('not enough patterns')
+        return notes
+
+gs = Scrapper('''
+  Changes to be committed:|contains changes to be committed
+  Changes not staged for commit:|contains changes in files
+  Untracked files:|contains untracked files
+  use "git push" to publish your local commits|contains local commits to push
+  nothing to commit, working directory clean|__ok__
+''')
+
+def load_repos(filename):
+    repos = []
+    with open(filename) as file:
+        for line in file:
+            line = line.strip()
+            if not len(line):
+                continue
+            if line[-5:] == '/.git':
+                line = line[:-5]
+            if line[:2] == './':
+                line = line[2:]
+            repos.append('~/' + line)
+    return repos
+
+def check_repo(path):
+    os.chdir(os.path.expanduser(path))
+    output = subprocess.check_output(['git', 'status'])
+    branch = re.search('On branch (\w+)', output).group(1)
+    notes = gs.scrappe(output)
+    if notes:
+        print '{} [{}]:'.format(path, branch)
+        for note in notes:
+            print '-', note
+    return len(notes) == 0
+
+repos = load_repos(os.path.expanduser('~/git_repos.txt'))
+all_clean = True
+for repo in repos:
+    all_clean = check_repo(repo) and all_clean
+
+if all_clean:
+    print "All git repositories be spit shine. Arrr!"
