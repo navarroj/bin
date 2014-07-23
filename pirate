@@ -2,13 +2,16 @@
 import os.path
 import subprocess
 import re
+import sys
+import yaml
 
 class Scrapper:
     def __init__(self, config):
         lines = config.strip().split('\n')
         self._patterns = []
         for line in lines:
-            self._patterns.append(line.strip().split('|'))
+            pattern, value = line.strip().split('|')
+            self._patterns.append((re.compile(pattern), value))
     
     def scrappe(self, output):
         notes = []
@@ -33,22 +36,13 @@ gs = Scrapper('''
   nothing to commit, working directory clean|__ok__
 ''')
 
-def load_repos(filename):
-    repos = []
-    with open(filename) as file:
-        for line in file:
-            line = line.strip()
-            if not len(line):
-                continue
-            if line[-5:] == '/.git':
-                line = line[:-5]
-            if line[:2] == './':
-                line = line[2:]
-            repos.append('~/' + line)
-    return repos
-
-def check_repo(path):
-    os.chdir(os.path.expanduser(path))
+def repo_check(path):
+    full_path = os.path.expanduser(path)
+    if not os.path.isdir(full_path):
+        print path
+        print "ERROR: Repository missing. To fix edit your config or run: pirate find"
+        return False
+    os.chdir(full_path)
     output = subprocess.check_output(['git', 'status'])
     branch = re.search('On branch (\w+)', output).group(1)
     notes = gs.scrappe(output)
@@ -58,10 +52,90 @@ def check_repo(path):
             print '-', note
     return len(notes) == 0
 
-repos = load_repos(os.path.expanduser('~/git_repos.txt'))
-all_clean = True
-for repo in repos:
-    all_clean = check_repo(repo) and all_clean
+def repo_pull(path):
+    print path, '$ git pull'
+    os.chdir(os.path.expanduser(path))
+    output = subprocess.check_output(['git', 'pull'])
+    print output
 
-if all_clean:
-    print "All git repositories be spit shine. Arrr!"
+def save_map(filename, map):
+    with open(os.path.expanduser(filename), 'w') as stream:
+        stream.write("# This is pirate's list of git repositories found on your machie.\n")
+        stream.write("# To ignore a repository change its status form 'active' to 'ignore'.\n")
+        yaml.safe_dump(map, stream, default_flow_style=False)
+
+def load_map(filename):
+    with open(os.path.expanduser(filename), 'r') as stream:
+        map = yaml.safe_load(stream)
+    return map
+    
+def build_index(map):
+    index = {}
+    for repository in map['repositories']:
+        index[repository['path']] = repository
+    return index
+
+def build_map(filename, map=None):
+    print "Finding git repositories under your home directory."
+    print "Please be patient, this might take a while."
+    print
+    index = build_index(map)
+    map = {'repositories': []}
+    new_found = 0
+    os.chdir(os.path.expanduser('~'))
+    for root, dirs, _ in os.walk('.'):
+        if '.git' in dirs:
+            path = '~' + root[1:]
+            if path in index:
+                status = index[path]['status']
+                map['repositories'].append(index[path])
+                del index[path]
+            else:
+                new_found += 1
+                map['repositories'].append({'path': path, 'status': 'active'})
+                status = '*new*'
+            print '{} [{}]'.format(path, status)
+            dirs.remove('.git')
+    for repository in index.values():
+        repository['status'] = 'missing'
+        map['repositories'].append(repository)
+    save_map(filename, map)
+    print
+    if new_found == 0:
+        print "No new repositories were found."
+    elif new_found == 1:
+        print "1 new repository was found."
+    else:
+        print new_found, "new repositories were found."
+    print
+    print "Repository info has been written into:", filename
+    print "Edit this file, if needed, and run pirate again."
+
+pirate_config = '~/.pirate.yaml'
+if not os.path.isfile(os.path.expanduser(pirate_config)):
+    build_map(pirate_config)
+    exit(0)
+
+map = load_map(pirate_config)
+mode = sys.argv[1] if len(sys.argv) >= 2 else 'check'
+
+if mode == 'find':
+    build_map(pirate_config, map)
+elif mode == 'check':
+    all_clean = True
+    for repository in map['repositories']:
+        if repository['status'] == 'active':
+            all_clean = repo_check(repository['path']) and all_clean
+    if all_clean:
+        print "All git repositories be spit shine. Arrr!"
+elif mode == 'list':
+    for repository in map['repositories']:
+        if repository['status'] == 'active':
+            print repository['path']
+elif mode == 'pull':
+    for repository in map['repositories']:
+        if repository['status'] == 'active':
+            repo_pull(repository['path'])
+else:
+    print "Unknown mode:", mode
+    exit(1)
