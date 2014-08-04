@@ -3,12 +3,19 @@
 use strict;
 use warnings;
 use Getopt::Long;
+use Term::ANSIColor;
 
 GetOptions(
   'help'    => sub { usage() },
 );
 
-while(<>) { print if /[^[:space:][:print:]]/ }
+my $many = @ARGV > 1;
+while(<>) {
+    next unless /[^[:space:][:print:]]/;
+    s/([^[:space:][:print:]]+)/colored($1, 'on_red')/eg;
+    print $ARGV, ": " if $many;
+    print;
+}
 
 sub usage {
   print <<'USAGE';
