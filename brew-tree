@@ -1,0 +1,56 @@
+#!/usr/bin/env python
+'''Print installed brew packages as a nicely formatted tree of dependencies.'''
+
+import subprocess
+import yaml
+
+def brew_deps():
+    deps = {'_root': subprocess.check_output(['brew', 'list']).split()}
+    for cask in deps['_root']:
+        deps[cask] = subprocess.check_output(['brew', 'deps', cask]).split()
+    return deps
+
+def prune_tree(cask, deps, descendants=None):
+    '''Filter out sub-descendants from list of children.'''
+    if cask not in deps:
+        return set()
+    if descendants is None:
+        descendants = dict()
+    if cask in descendants:
+        return descendants[cask]
+    descendants[cask] = set()
+    for child in deps[cask]:
+        descendants[cask] |= prune_tree(child, deps, descendants)
+    deps[cask] = [child for child in deps[cask] if child not in descendants[cask]]
+    descendants[cask] |= set(deps[cask])
+    return descendants[cask]
+
+def print_tree(cask, deps, level=-1, seen=None):
+    if seen is None:
+        seen = set()
+
+    if level >= 0:
+        if level > 0:
+            indent = ('  ' * (level - 1)) + '- '
+        else:
+            indent = ''
+        if cask in deps:
+            if deps[cask]:
+                if cask in seen:
+                    note = ': ...' # has children, printed before
+                else:
+                    note = ':'     # has children, first print
+            else:
+                note = ''
+        else:
+            note = '*'
+        print indent + cask + note
+
+    if cask in deps and cask not in seen:
+        for dep in deps[cask]:
+            print_tree(dep, deps, level + 1, seen)
+    seen.add(cask)
+
+deps = brew_deps()
+prune_tree('_root', deps)
+print_tree('_root', deps)
