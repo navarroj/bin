@@ -71,8 +71,9 @@ def load_map(filename):
     
 def build_index(map):
     index = {}
-    for repository in map['repositories']:
-        index[repository['path']] = repository
+    if map is not None:
+        for repository in map['repositories']:
+            index[repository['path']] = repository
     return index
 
 def build_map(filename, map=None):
