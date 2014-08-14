@@ -4,6 +4,7 @@ import subprocess
 import re
 import sys
 import yaml
+from textwrap import dedent
 
 class Scrapper:
     def __init__(self, config):
@@ -60,8 +61,10 @@ def repo_pull(path):
 
 def save_map(filename, map):
     with open(os.path.expanduser(filename), 'w') as stream:
-        stream.write("# This is pirate's list of git repositories found on your machie.\n")
-        stream.write("# To ignore a repository change its status form 'active' to 'ignore'.\n")
+        stream.write(dedent("""\
+            # This is pirate's list of git repositories found on your machie.
+            # Directories listed under the `ignore` key, if any, have been ignored.
+        """))
         yaml.safe_dump(map, stream, default_flow_style=False)
 
 def load_map(filename):
@@ -71,35 +74,58 @@ def load_map(filename):
     
 def build_index(map):
     index = {}
-    if map is not None:
+    ignore = set()
+    if 'repositories' in map:
         for repository in map['repositories']:
             index[repository['path']] = repository
-    return index
+    if 'ignore' in map:
+        for path in map['ignore']:
+            ignore.add(path)
+    return index, ignore
+
+def repo_remote_url(path):
+    cwd = os.getcwd()
+    os.chdir(os.path.expanduser(path))
+    remote = subprocess.check_output('git config --get remote.origin.url'.split()).strip()
+    os.chdir(cwd)
+    return remote
 
 def build_map(filename, map=None):
     print "Finding git repositories under your home directory."
     print "Please be patient, this might take a while."
     print
-    index = build_index(map)
-    map = {'repositories': []}
+    if map is None:
+        map = {'repositories': []}        
+    index, ignore = build_index(map)
+    map['repositories'] = []
     new_found = 0
     os.chdir(os.path.expanduser('~'))
     for root, dirs, _ in os.walk('.'):
+        path = '~' + root[1:]
+        if path in ignore:
+            del dirs[:]
+            continue
         if '.git' in dirs:
-            path = '~' + root[1:]
             if path in index:
-                status = index[path]['status']
                 map['repositories'].append(index[path])
                 del index[path]
+                status = 'active'
             else:
                 new_found += 1
-                map['repositories'].append({'path': path, 'status': 'active'})
-                status = '*new*'
+                map['repositories'].append({
+                    'local': path, 
+                    'remote': repo_remote_url(path)})
+                status = '*new*'            
             print '{} [{}]'.format(path, status)
             dirs.remove('.git')
-    for repository in index.values():
-        repository['status'] = 'missing'
-        map['repositories'].append(repository)
+    if index:
+        if not 'missing' in map:
+            map['missing'] = []
+        map['missing'].extend(list(index.values()))
+        print
+        print "The following repositories were missing and have been disabled:"
+        for repository in index.keys():
+            print "-", repository
     save_map(filename, map)
     print
     if new_found == 0:
@@ -118,6 +144,7 @@ if not os.path.isfile(os.path.expanduser(pirate_config)):
     exit(0)
 
 map = load_map(pirate_config)
+save_map(pirate_config, map)
 mode = sys.argv[1] if len(sys.argv) >= 2 else 'check'
 
 if mode == 'find':
@@ -125,18 +152,15 @@ if mode == 'find':
 elif mode == 'check':
     all_clean = True
     for repository in map['repositories']:
-        if repository['status'] == 'active':
-            all_clean = repo_check(repository['path']) and all_clean
+        all_clean = repo_check(repository['local']) and all_clean
     if all_clean:
         print "All git repositories be spit shine. Arrr!"
 elif mode == 'list':
     for repository in map['repositories']:
-        if repository['status'] == 'active':
-            print repository['path']
+        print repository['local']
 elif mode == 'pull':
     for repository in map['repositories']:
-        if repository['status'] == 'active':
-            repo_pull(repository['path'])
+        repo_pull(repository['local'])
 else:
     print "Unknown mode:", mode
     exit(1)
