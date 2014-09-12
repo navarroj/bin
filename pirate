@@ -77,7 +77,7 @@ def build_index(map):
     ignore = set()
     if 'repositories' in map:
         for repository in map['repositories']:
-            index[repository['path']] = repository
+            index[repository['local']] = repository
     if 'ignore' in map:
         for path in map['ignore']:
             ignore.add(path)
