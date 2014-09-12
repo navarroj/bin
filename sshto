@@ -1,0 +1,87 @@
+#!/usr/bin/env python
+import argparse
+import os.path
+import pipes
+import subprocess
+import yaml
+
+ID_RSA_PUB = '~/.ssh/id_rsa.pub'
+ID_RSA_PUB_PATH = os.path.expanduser(ID_RSA_PUB)
+ACCOUNTS = '~/.sshto.yaml'
+ACCOUNTS_PATH = os.path.expanduser(ACCOUNTS)
+
+def get_rsa_pub():    
+  if not os.path.isfile(ID_RSA_PUB_PATH):
+      print "Public key not found. Let's create one now."
+      subprocess.call('ssh-keygen -t rsa'.split())
+      if not os.path.isfile(ID_RSA_PUB_PATH):
+        print 'Sorry, public key not found:', ID_RSA_PUB
+        exit(1)
+  with open(ID_RSA_PUB_PATH, 'r') as stream:
+    return stream.readline().rstrip()
+
+def register_command(address):
+  command = 'mkdir -p ~/.ssh; chmod 700 ~/.ssh; echo {} >> ~/.ssh/authorized_keys'
+  return command.format(pipes.quote(get_rsa_pub()))
+
+def load_config():
+  if os.path.isfile(ACCOUNTS_PATH):
+    with open(ACCOUNTS_PATH, 'r') as stream:
+      return yaml.safe_load(stream)
+  else:
+      return {'accounts': {}}
+      
+def save_config(config):
+	with open(ACCOUNTS_PATH, 'w') as stream:
+		yaml.safe_dump(config, stream=stream, default_flow_style=False)
+
+config = load_config()
+
+parser = argparse.ArgumentParser(description='Quick shortcuts to access ssh accounts.')
+parser.add_argument('-l', '--list', action='store_true',
+    help='show all available connections')
+parser.add_argument('-i', '--info', action='store_true',
+    help='show the details of the selected account')
+parser.add_argument('-t', '--tunnel', action='store_true',
+    help='create an ssh tunnel with the selected account')
+parser.add_argument('--add', metavar=('ACCOUNT', 'USER@HOST'), nargs=2,
+		help='register a nickname for a new account')
+parser.add_argument('--setup-passwordless', action='store_true',
+    help='register the selected account for passwordless ssh')
+parser.add_argument('--debug', action='store_true')
+parser.add_argument('account', metavar='ACCOUNT', choices=config['accounts'].keys(),
+    nargs='?', help='nickname of the account you want to connect to')
+args = parser.parse_args()
+if args.debug:
+	print args
+	exit()
+
+if args.list:
+  if config['accounts']:
+    print 'Available connections:'
+    for account, address in config['accounts'].items():
+    	print '  {}: {}'.format(account, address)
+  else:
+    print 'No connections available. Add some with:'
+    print '  sshto --add nickname user@host'
+  exit()
+if args.add:
+	config['accounts'][args.add[0]] = args.add[1]
+	save_config(config)
+	exit()
+
+if not args.account:
+	print 'You must select an account. To see available accounts run:'
+	print '  sshto --list'
+	exit(1)
+
+address = config['accounts'][args.account]
+if args.info:
+  print address
+elif args.setup_passwordless:
+  print 'Registering {} for passwordless ssh'.format(address)
+  subprocess.call(['ssh', address, register_command(address)])
+elif args.tunnel:
+  subprocess.call(['ssh', '-ND', '9999', address])
+else:
+  subprocess.call(['ssh', address])
