@@ -19,7 +19,7 @@ die "Jekyll configuration file not found.\n" unless -f '_config.yml';
 my $config = LoadFile('_config.yml');
 
 if ($mode eq 'serve') {
-  system qw(jekyll serve --watch --baseurl=), @ARGV;
+  system qw(jekyll serve --drafts --watch --baseurl=), @ARGV;
 } elsif ($mode eq 'build') {
   system qw(jekyll build);
 } elsif ($mode eq 'upload') {
@@ -116,8 +116,8 @@ Usage: hyde [command] [options]
 Description:
 Perform several tasks on a Jekyll site.
 
-hyde serve [--drafts]
-  Start a Jekyll server, optionally with drafts.
+hyde serve
+  Start a Jekyll server (includes drafts).
   
 hyde build
   Build the site. Just like `jekyll build`.
